@@ -1,0 +1,808 @@
+<!doctype html><html lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}</style></head><body><title>AR Mutasi</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: phone-first lab card. Topic tabs, 3D stage, stat card, toggles (Normal/Penghidap, view), notes. Desktop: stage left, panel right. Deliberately light, single theme. */
+:root {
+  --bg: #eef0f8;
+  --card: #ffffff;
+  --stage: #e6e8f6;
+  --ink: #17143a;
+  --muted: #5d5a7e;
+  --line: #d9dbec;
+  --primary: #2639a8;
+  --primary-ink: #ffffff;
+  --violet: #5b2fc9;
+  --yellow: #f4c20d;
+  --red: #d8323a;
+  --green: #1f9d5a;
+  --display: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+  --mono: "IBM Plex Mono", "Courier New", monospace;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--display); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 14px 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 12px; }
+.top h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.top h1 small { display: block; font: 500 11px var(--mono); color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.cats { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.cats::-webkit-scrollbar { display: none; }
+.cat { flex: none; font: 700 13px var(--display); border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+.cat.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; }
+.tab { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px; cursor: pointer; color: var(--ink); font: 700 15px var(--display); }
+.tab small { display: block; font: 500 11px var(--mono); color: var(--muted); margin-top: 2px; }
+.tab.on { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.tab.on small { color: #c9d1ff; }
+.main { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .main { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: start; } .side { position: sticky; top: 12px; } }
+.stage { position: relative; background: radial-gradient(120% 90% at 50% 30%, #f8f9ff 0%, var(--stage) 75%); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; height: min(60vh, 560px); min-height: 340px; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+.stage video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.stage .cap { position: absolute; top: 12px; left: 14px; font: 600 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: rgba(255,255,255,0.8); padding: 4px 8px; border-radius: 6px; z-index: 2; max-width: calc(100% - 140px); }
+.stage .camBtn { position: absolute; top: 8px; right: 8px; z-index: 2; padding: 8px 12px; font-size: 13px; }
+.stage .hint { position: absolute; bottom: 10px; left: 14px; right: 14px; font-size: 12px; color: var(--muted); z-index: 2; pointer-events: none; }
+.camon .hint { background: rgba(255,255,255,0.85); padding: 4px 8px; border-radius: 6px; }
+.side { display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; min-width: 0; }
+.stat { display: flex; gap: 14px; align-items: center; }
+.stat .num { font-weight: 800; font-size: 54px; line-height: 1; color: var(--primary); font-variant-numeric: tabular-nums; min-width: 72px; transition: color .3s; }
+.stat .num.word { font-size: 28px; min-width: 0; }
+.stat .num.alert { color: var(--red); }
+.stat .lbl { font: 600 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.stat h3 { margin: 2px 0 2px; font-size: 18px; line-height: 1.2; }
+.stat p { margin: 0; color: var(--muted); font-size: 14px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.ctrls { display: grid; gap: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); width: fit-content; max-width: 100%; }
+.seg button { font: 700 14px var(--display); border: 0; background: transparent; color: var(--ink); padding: 10px 14px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--primary); color: #fff; }
+.seg.state button.on.p { background: var(--red); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font: 700 14px var(--display); border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 10px 14px; cursor: pointer; min-width: 44px; }
+.btn.go { background: var(--yellow); border-color: #d9a800; }
+.btn:focus-visible, .seg button:focus-visible, .tab:focus-visible, .cat:focus-visible, .opt:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.notes h4 { margin: 0 0 6px; font: 600 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; line-height: 1.45; }
+.cuba { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 15px; line-height: 1.45; }
+.cuba b { color: var(--primary); }
+.cuba .a { margin-top: 8px; background: #e9f7ef; border-radius: 10px; padding: 8px 10px; color: #12432a; }
+.tree { display: grid; gap: 12px; margin-top: 12px; }
+.tree .node { font-weight: 800; margin-bottom: 6px; }
+.tree .kids { display: flex; flex-wrap: wrap; gap: 6px; }
+.tree .kids button { font: 700 13px var(--display); border-radius: 999px; padding: 7px 12px; border: 1px solid var(--line); background: #f5f6fc; cursor: pointer; color: var(--ink); }
+.tree .kids button[disabled] { cursor: default; opacity: 0.6; }
+.def { font-size: 17px; line-height: 1.5; margin: 0; }
+.def mark { background: #fff1b8; padding: 0 3px; border-radius: 4px; }
+.opts { display: grid; gap: 8px; margin-top: 10px; }
+.opt { text-align: left; font: 600 15px var(--display); background: #f5f6fc; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; cursor: pointer; color: var(--ink); }
+.opt.ok { background: #dff5e8; border-color: var(--green); }
+.opt.no { background: #fde3e4; border-color: var(--red); }
+.toast { position: absolute; left: 12px; right: 12px; bottom: 36px; z-index: 3; background: rgba(23,20,58,0.92); color: #fff; font-size: 13px; line-height: 1.4; padding: 10px 12px; border-radius: 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="top"><h1>AR Mutasi<small>Sains T4 · Bab 5 · 5.3.1 &amp; 5.3.2</small></h1></div>
+  <div class="cats" id="cats" aria-label="Bahagian"></div>
+  <div class="tabs" id="tabs"></div>
+  <div class="main">
+    <div class="stage" id="stage">
+      <video id="cam" playsinline muted hidden></video>
+      <canvas id="c" aria-label="Model 3D"></canvas>
+      <div class="cap" id="cap"></div>
+      <button class="btn camBtn" id="camBtn" type="button">Kamera AR</button>
+      <div class="hint">Seret untuk putar · cubit atau + / − untuk zum</div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+    <div class="side">
+      <div class="card" id="statCard">
+        <div class="stat"><div class="num" id="sNum">46</div><div><div class="lbl" id="sLbl">Jumlah kromosom</div><h3 id="sTitle"></h3><p id="sSub"></p></div></div>
+        <div class="legend" id="legend"><span><i style="background:var(--yellow)"></i>Kromosom yang terlibat</span><span><i style="background:var(--violet)"></i>Kromosom lain</span></div>
+      </div>
+      <div class="ctrls">
+        <div class="seg state" id="segState"><button type="button" data-s="0" class="on">Normal</button><button type="button" data-s="1" class="p">Penghidap</button></div>
+        <div class="seg" id="segView"></div>
+        <div class="row"><button class="btn" id="zin" type="button" aria-label="Zum masuk">+</button><button class="btn" id="zout" type="button" aria-label="Zum keluar">−</button><button class="btn" id="reset" type="button">Set semula</button><button class="btn go" id="play" type="button" hidden>Main semula</button></div>
+      </div>
+      <div class="card notes" id="notes"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const canvas = $('c'), stageEl = $('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.setClearColor(0, 0);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9a90c8, 1.5));
+const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(3, 6, 8); scene.add(key);
+const rim = new THREE.DirectionalLight(0xd8ccff, 1.2); rim.position.set(-6, 2, -5); scene.add(rim);
+const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 200);
+const pivot = new THREE.Group(); scene.add(pivot);
+
+// ---------- tweens ----------
+const tweens = [];
+const ease = {
+  out: (k) => 1 - Math.pow(1 - k, 3),
+  inout: (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+  back: (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); },
+};
+function tween(dur, fn, e = ease.inout, key) {
+  if (key) for (let i = tweens.length - 1; i >= 0; i--) if (tweens[i].key === key) tweens.splice(i, 1);
+  if (!dur) { fn(1); return; }
+  tweens.push({ t: 0, dur, fn, e, key });
+}
+function stepTweens(dt) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i]; tw.t = Math.min(tw.dur, tw.t + dt);
+    tw.fn(tw.e(tw.t / tw.dur));
+    if (tw.t >= tw.dur) tweens.splice(i, 1);
+  }
+}
+const lerp = (a, b, k) => a + (b - a) * k;
+
+// ---------- chromosome model ----------
+const COLORS = { A: ['#3f1aa3', '#7d52ea'], hi: ['#c98a00', '#ffd83a'] };
+function seeded(seed) { let s = seed * 9301 + 49297; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+const texCache = {};
+function bands(seed, kind, gene) {
+  const k = seed + kind + (gene || '');
+  if (texCache[k]) return texCache[k];
+  const c = document.createElement('canvas'); c.width = 4; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = COLORS[kind][1]; g.fillRect(0, 0, 4, 256);
+  const r = seeded(seed); let y = 8;
+  while (y < 248) { const h = 3 + r() * 12; if (r() > 0.5) { g.fillStyle = COLORS[kind][0]; g.globalAlpha = 0.5 + r() * 0.35; g.fillRect(0, y, 4, h); } y += h + 4 + r() * 10; }
+  g.globalAlpha = 1;
+  if (gene) { g.fillStyle = gene; g.fillRect(0, 196, 4, 26); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return (texCache[k] = t);
+}
+// One sister chromatid: a lathe with rounded ends and a pinch at the centromere.
+function chromatidGeom(len, cen, r0) {
+  const pts = [], N = 44;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, y = -len / 2 + t * len;           // bottom to top
+    const fromTop = 1 - t;
+    let r = r0 * (0.5 + 0.5 * Math.min(1, Math.abs(fromTop - cen) / 0.1));
+    const fromEnd = Math.min(t * len, (1 - t) * len);
+    if (fromEnd < r0) r *= Math.sqrt(Math.max(0, 1 - Math.pow(1 - fromEnd / r0, 2)));
+    pts.push(new THREE.Vector2(Math.max(r, 0.0001), y));
+  }
+  return new THREE.LatheGeometry(pts, 22);
+}
+function chromosome(len, cen, kind, seed, o = {}) {
+  const g = new THREE.Group();
+  const r0 = o.r || 0.16;
+  const mat = new THREE.MeshPhysicalMaterial({
+    map: bands(seed, kind, o.gene), roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.3, transparent: true, opacity: 1,
+    emissive: kind === 'hi' ? 0x6b4a00 : 0x000000, emissiveIntensity: kind === 'hi' ? 0.3 : 0,
+  });
+  const geo = chromatidGeom(len, cen, r0);
+  const yc = len / 2 - cen * len;
+  for (const s of [-1, 1]) {
+    const m = new THREE.Mesh(geo, mat);
+    // tilt each chromatid about the centromere so they touch there and splay at the ends
+    const arm = new THREE.Group(); arm.position.y = yc; m.position.y = -yc; m.position.x = s * r0 * 0.62; arm.rotation.z = -s * 0.06; arm.add(m); g.add(arm);
+  }
+  g.userData.mat = mat; g.userData.len = len;
+  return g;
+}
+function setOpacity(obj, a) {
+  obj.traverse((n) => { if (n.material && !n.isSprite) { const ms = Array.isArray(n.material) ? n.material : [n.material]; ms.forEach((m) => { m.transparent = true; m.opacity = a; m.depthWrite = a > 0.5; }); } });
+}
+function textSprite(text, size = 0.4, color = '#17143a', font = '700 72px "IBM Plex Mono", monospace', bg = null) {
+  const m = document.createElement('canvas').getContext('2d'); m.font = font;
+  const W = Math.max(96, Math.ceil(m.measureText(text).width + (bg ? 64 : 24)));
+  const sz = font === SANS ? size * 1.45 : size;
+  const c = document.createElement('canvas'); c.width = W; c.height = 112;
+  const g = c.getContext('2d'); g.font = font;
+  if (bg) { g.fillStyle = bg; g.beginPath(); g.roundRect(2, 8, W - 4, 96, 48); g.fill(); }
+  g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, W / 2, 58);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false }));
+  s.scale.set(sz * W / 112, sz, 1); s.renderOrder = 5;
+  s.userData.set = (txt, col = color, b = bg) => { const n = textSprite(txt, size, col, font, b); s.material.map.dispose(); s.material.map = n.material.map; s.scale.copy(n.scale); };
+  return s;
+}
+const SANS = '700 64px "Plus Jakarta Sans", Arial';
+const PILL = 'rgba(255,255,255,0.92)';
+function glowRing(r) {
+  return new THREE.Mesh(new THREE.RingGeometry(r * 0.88, r, 48), new THREE.MeshBasicMaterial({ color: 0xffc400, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+}
+function shadowDisc(w, h) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+  gr.addColorStop(0, 'rgba(40,30,110,0.28)'); gr.addColorStop(1, 'rgba(40,30,110,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; return m;
+}
+
+const LEN = [1, .97, .81, .77, .74, .7, .65, .6, .57, .55, .55, .54, .46, .44, .42, .37, .34, .32, .27, .27, .2, .21];
+const CEN = [.48, .39, .46, .28, .27, .37, .36, .33, .34, .32, .4, .29, .16, .16, .17, .43, .33, .3, .45, .45, .3, .28];
+
+// Karyotype in textbook order (Rajah 5.16–5.18). type: 'down' | 'turner' | 'kline'
+function karyotype(type) {
+  const root = new THREE.Group();
+  const rows = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17], [18, 19, 20, 21, 'S']];
+  const rowY = [2.7, 0.55, -1.35, -3.0], S = 1.7;
+  const pairs = []; let focusPair = null, extra = null, missing = null, missingLabel = null, sexLabel = null;
+  rows.forEach((row, ri) => {
+    const pitch = ri === 0 ? 1.9 : ri === 3 ? 1.85 : 1.4;
+    row.forEach((idx, ci) => {
+      const pair = new THREE.Group();
+      const isS = idx === 'S';
+      const involved = (type === 'down' && idx === 20) || (type !== 'down' && isS);
+      let members;
+      if (isS) members = type === 'turner' ? ['X', 'X*'] : type === 'kline' ? ['X', 'X+', 'Y'] : ['X', 'Y'];
+      else members = involved ? ['A', 'A', 'A+'] : ['A', 'A'];
+      members.forEach((m, mi) => {
+        const base = m[0];
+        let len = base === 'X' ? 0.52 * S : base === 'Y' ? 0.2 * S : LEN[idx] * S;
+        len = Math.max(len, 0.42);
+        const cen = base === 'X' ? 0.4 : base === 'Y' ? 0.3 : CEN[idx];
+        const ch = chromosome(len, cen, involved ? 'hi' : 'A', (isS ? (base === 'Y' ? 99 : 77) : idx) * 7 + mi, { r: 0.13 });
+        ch.position.set((mi - (members.length - 1) / 2) * 0.48, len / 2 + 0.15, 0);
+        ch.rotation.y = mi % 2 ? -0.25 : 0.25;
+        ch.userData.home = ch.position.clone();
+        pair.add(ch);
+        if (m.endsWith('+')) extra = ch;
+        if (m.endsWith('*')) missing = ch;
+      });
+      const name = isS ? (type === 'turner' ? 'XX' : 'XY') : String(idx + 1);
+      const lab = textSprite(name, 0.3, involved ? '#a87400' : '#4b4870'); lab.position.set(0, -0.08, 0.3); pair.add(lab);
+      if (isS) sexLabel = lab;
+      if (involved) { const rg = glowRing(1.0); rg.position.set(0, 0.6, -0.3); pair.add(rg); pair.userData.ring = rg; focusPair = pair; }
+      pair.position.set((ci - (row.length - 1) / 2) * pitch, rowY[ri], 0);
+      root.add(pair); pairs.push(pair);
+    });
+  });
+  if (missing) {
+    missingLabel = textSprite('hilang', 0.34, '#a87400');
+    missingLabel.position.set(missing.position.x, missing.position.y + missing.userData.len / 2 + 0.3, 0.4);
+    missingLabel.visible = false; missing.parent.add(missingLabel);
+  }
+  const caption = { down: 'Kariotip lelaki · Rajah 5.16', turner: 'Kariotip perempuan · Rajah 5.17', kline: 'Kariotip lelaki · Rajah 5.18' }[type];
+  const normalCap = type === 'turner' ? 'Kariotip perempuan normal' : 'Kariotip lelaki normal';
+  return {
+    root, caption: (p) => (p ? caption : normalCap), viewNames: ['Fokus', 'Kariotip penuh'],
+    focus: () => ({ target: focusPair.position.clone().add(new THREE.Vector3(0, 0.62, 0)), dist: 4.4 }),
+    full: { target: new THREE.Vector3(0, 0.45, 0), dist: 18.5 }, kCap: 1.05,
+    setState(p, instant) {
+      const d = instant ? 0 : 0.9;
+      if (extra) {
+        if (p) {
+          extra.visible = true;
+          tween(d, (k) => { extra.position.y = extra.userData.home.y + (1 - k) * 2.2; extra.scale.setScalar(Math.max(0.001, k)); setOpacity(extra, Math.min(1, k * 1.5)); }, ease.back, 'ex');
+          if (!instant) { const rg = focusPair.userData.ring; tween(1.3, (k) => { rg.scale.setScalar(0.5 + k * 1.3); rg.material.opacity = 0.95 * (1 - k); }, ease.out, 'ring'); }
+        } else {
+          tween(d * 0.6, (k) => { extra.scale.setScalar(Math.max(0.001, 1 - k)); setOpacity(extra, 1 - k); if (k >= 1) extra.visible = false; }, ease.inout, 'ex');
+        }
+        if (type === 'kline') sexLabel.userData.set(p ? 'XXY' : 'XY', '#a87400');
+      }
+      if (missing) {
+        const from = missing.userData.op ?? 1, to = p ? 0.14 : 1;
+        tween(d, (k) => { const a = lerp(from, to, k); missing.userData.op = a; setOpacity(missing, a); }, ease.inout, 'mi');
+        missingLabel.visible = p;
+        sexLabel.userData.set(p ? 'XO' : 'XX', '#a87400');
+      }
+    },
+    setView(v, instant) { // 0 Fokus, 1 penuh
+      const d = instant ? 0 : 0.9;
+      pairs.forEach((pr, i) => {
+        if (pr === focusPair) return;
+        const from = pr.userData.op ?? 1, to = v === 0 ? 0.06 : 1;
+        tween(d, (k) => { const a = lerp(from, to, k); pr.userData.op = a; pr.children.forEach((c) => (c.isSprite ? (c.material.opacity = a) : setOpacity(c, a))); }, ease.inout, 'v' + i);
+      });
+    },
+    update(t) {
+      const glow = 0.22 + 0.25 * (0.5 + 0.5 * Math.sin(t * 3.2));
+      focusPair.children.forEach((c) => { if (c.userData.mat) c.userData.mat.emissiveIntensity = glow; });
+      if (extra && extra.visible && !tweens.some((tw) => tw.key === 'ex')) extra.scale.setScalar(1 + 0.04 * Math.sin(t * 3.2));
+    },
+  };
+}
+
+// ---------- blood cells ----------
+function rbcGeom(s = 1) {
+  const pts = [], N = 30;
+  const h = (x) => 0.5 * Math.sqrt(Math.max(0, 1 - x * x)) * (0.207 + 2.003 * x * x - 1.123 * x ** 4) + 0.012;
+  for (let i = 0; i <= N; i++) { const x = Math.sin((i / N) * Math.PI / 2); pts.push(new THREE.Vector2(x * s, -h(x) * s)); }
+  for (let i = N - 1; i >= 0; i--) { const x = Math.sin((i / N) * Math.PI / 2); pts.push(new THREE.Vector2(x * s, h(x) * s)); }
+  const g = new THREE.LatheGeometry(pts, 40); g.computeVertexNormals(); return g;
+}
+function sickleGeom(s = 1) {
+  const sh = new THREE.Shape(), N = 40;
+  for (let i = 0; i <= N; i++) { const a = Math.PI * (0.04 + 0.92 * i / N); i ? sh.lineTo(Math.cos(a), Math.sin(a)) : sh.moveTo(Math.cos(a), Math.sin(a)); }
+  for (let i = N; i >= 0; i--) { const a = Math.PI * (0.04 + 0.92 * i / N); sh.lineTo(0.94 * Math.cos(a), 0.52 * Math.sin(a) + 0.02); }
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.08, bevelSegments: 5, curveSegments: 24 });
+  g.center(); g.scale(s * 1.5, s * 1.5, s); g.computeVertexNormals(); return g;
+}
+const RBC = rbcGeom(1), SICKLE = sickleGeom(0.85);
+const redMat = () => new THREE.MeshPhysicalMaterial({ color: 0xd42a2a, roughness: 0.42, clearcoat: 0.4, sheen: 0.6, sheenColor: new THREE.Color(0xff9a9a), transparent: true });
+
+function sickleScene() {
+  const root = new THREE.Group();
+  const solo = new THREE.Group(); root.add(solo);
+  const disc = new THREE.Mesh(RBC, redMat()); disc.scale.setScalar(1.6); disc.rotation.x = 1.0;
+  const sick = new THREE.Mesh(SICKLE, redMat()); sick.scale.setScalar(0.001); sick.rotation.set(-0.5, 0.3, 0.1);
+  solo.add(disc, sick);
+  const sl = textSprite('Sel darah merah normal', 0.34, '#17143a', SANS, PILL); sl.position.set(0, -2.1, 0.5); solo.add(sl);
+  const sh = shadowDisc(4, 2); sh.position.y = -1.7; solo.add(sh);
+  const vessel = new THREE.Group(); root.add(vessel); vessel.visible = false;
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 11, 48, 1, true), new THREE.MeshPhysicalMaterial({ color: 0xff8f8f, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
+  tube.rotation.z = Math.PI / 2; vessel.add(tube);
+  const neck = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.3, 14, 48), new THREE.MeshPhysicalMaterial({ color: 0xff9da2, transparent: true, opacity: 0.45 })); neck.rotation.y = Math.PI / 2; vessel.add(neck);
+  const vl = textSprite('Salur darah sempit', 0.34, '#17143a', SANS, PILL); vl.position.set(0, 2.2, 0); vessel.add(vl);
+  const cells = []; const rnd = seeded(4);
+  for (let i = 0; i < 16; i++) {
+    const g = new THREE.Group(); const m1 = new THREE.Mesh(RBC, redMat()), m2 = new THREE.Mesh(SICKLE, redMat()); g.add(m1, m2); g.scale.setScalar(0.48);
+    g.userData = { sick: i % 3 !== 0, x: -5.5 + i * 0.7, y: (rnd() - 0.5) * 1.3, z: (rnd() - 0.5) * 1.3, r: rnd() * 6, m1, m2 }; vessel.add(g); cells.push(g);
+  }
+  let P = false;
+  return {
+    root, viewNames: ['Satu sel', 'Dalam salur darah'], caption: (p) => (p ? 'Anemia sel sabit · Gambar foto 5.6' : 'Sel darah merah normal'),
+    focus: () => ({ target: new THREE.Vector3(0, 0, 0), dist: 8 }), full: { target: new THREE.Vector3(0, 0, 0), dist: 11 },
+    setState(p, instant) {
+      P = p; const d = instant ? 0 : 1.1;
+      tween(d, (k) => { const a = p ? k : 1 - k; disc.scale.setScalar(1.6 * Math.max(0.001, 1 - a)); disc.rotation.z = a * 3; sick.scale.setScalar(1.6 * Math.max(0.001, a)); sick.rotation.z = (1 - a) * -3; }, ease.inout, 'm');
+      sl.userData.set(p ? 'Sel berbentuk sabit' : 'Sel darah merah normal', p ? '#b3141c' : '#17143a');
+      cells.forEach((c, i) => { c.userData.x = -5.5 + i * 0.7; c.userData.passed = false; });
+    },
+    setView(v) { solo.visible = v === 0; vessel.visible = v === 1; },
+    update(t, dt) {
+      solo.rotation.y += dt * 0.25;
+      if (!vessel.visible) return;
+      const sorted = cells.slice().sort((a, b) => b.userData.x - a.userData.x);
+      sorted.forEach((c, i) => {
+        const u = c.userData, isS = P && u.sick;
+        u.m1.visible = !isS; u.m2.visible = isS;
+        let v = isS ? 1.0 : 2.2;
+        if (isS && u.x > -0.7 && u.x < 0.1 && !u.passed) v = 0;
+        if (i > 0) { const a = sorted[i - 1].userData; if (a.x > u.x && a.x - u.x < 0.65) v = Math.min(v, a.v ?? v); }
+        u.v = v; u.x += v * dt; u.r += dt * (v ? 1.6 : 0.15);
+        if (u.x > 5.5) { u.x = -5.5; u.passed = !isS || Math.random() < 0.15; }
+        const sq = Math.max(0.35, Math.min(1, Math.abs(u.x) / 1.2));
+        c.position.set(u.x, u.y * sq, u.z * sq); c.rotation.set(u.r, u.r * 0.7, 0.3);
+      });
+    },
+  };
+}
+
+function thalScene() {
+  const root = new THREE.Group(); const rnd = seeded(9); const cells = [];
+  for (let i = 0; i < 12; i++) {
+    const m = new THREE.Mesh(RBC, redMat());
+    m.userData = { home: new THREE.Vector3((rnd() - 0.5) * 6.5, (rnd() - 0.5) * 3.6, (rnd() - 0.5) * 2), sp: 0.3 + rnd() * 0.6, ph: rnd() * 6, life: rnd() };
+    m.position.copy(m.userData.home); m.rotation.set(rnd() * 3, rnd() * 3, 0); m.scale.setScalar(0.85); root.add(m); cells.push(m);
+  }
+  const lbl = textSprite('Sel darah merah normal', 0.34, '#17143a', SANS, PILL); lbl.position.set(0, -2.8, 1); root.add(lbl);
+  let P = false, view = 0; const pale = new THREE.Color(0xf2a7a1), red = new THREE.Color(0xd42a2a);
+  return {
+    root, viewNames: ['Bandingkan saiz', 'Jangka hayat sel'], caption: (p) => (p ? 'Talasemia' : 'Darah normal'),
+    focus: () => ({ target: new THREE.Vector3(0, 0, 0), dist: 10 }), full: { target: new THREE.Vector3(0, 0, 0), dist: 10 },
+    setState(p, instant) {
+      P = p;
+      tween(instant ? 0 : 1, (k) => { const a = p ? k : 1 - k; cells.forEach((m) => { m.scale.setScalar(lerp(0.85, 0.42, a)); m.material.color.copy(red).lerp(pale, a); }); }, ease.inout, 'th');
+      lbl.userData.set(view === 1 ? (p ? 'Sel cepat musnah' : 'Sel hidup lebih lama') : (p ? 'Sel kecil dan pucat' : 'Sel darah merah normal'), p ? '#b3141c' : '#17143a');
+    },
+    setView(v) { view = v; cells.forEach((m) => { m.material.opacity = 1; m.userData.life = Math.random() * 0.7; }); this.setState(P, true); },
+    update(t, dt) {
+      cells.forEach((m) => {
+        m.rotation.x += dt * m.userData.sp; m.rotation.y += dt * m.userData.sp * 0.7; m.position.y = m.userData.home.y + Math.sin(t + m.userData.ph) * 0.12;
+        if (view === 1) {
+          m.userData.life += dt * (P ? 0.32 : 0.05);
+          const l = m.userData.life % 1;
+          m.material.opacity = l > 0.85 ? (1 - l) / 0.15 : Math.min(1, l / 0.1);
+        } else m.material.opacity = 1;
+      });
+    },
+  };
+}
+
+function hemoScene() {
+  const root = new THREE.Group(); const rnd = seeded(5);
+  const skinMat = new THREE.MeshPhysicalMaterial({ color: 0xf1c6a8, roughness: 0.6 });
+  const s1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.6, 3), skinMat); s1.position.set(-2.3, 1.6, 0); root.add(s1);
+  const s2 = s1.clone(); s2.position.x = 2.3; root.add(s2);
+  const cl = textSprite('Kulit luka', 0.32, '#17143a', SANS, PILL); cl.position.set(0, 2.6, 0.5); root.add(cl);
+  const fm = new THREE.MeshPhysicalMaterial({ color: 0xffeaa0, roughness: 0.4 });
+  const fibres = [];
+  for (let i = 0; i < 24; i++) {
+    const p0 = new THREE.Vector3(-0.75 + rnd() * 1.5, 1.95 - rnd() * 1.3, (rnd() - 0.5) * 2.2);
+    const p1 = new THREE.Vector3(-0.75 + rnd() * 1.5, 1.95 - rnd() * 1.3, (rnd() - 0.5) * 2.2);
+    const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.LineCurve3(p0, p1), 4, 0.03, 6, false), fm); t.scale.setScalar(0.001); root.add(t); fibres.push(t);
+  }
+  const drops = [];
+  for (let i = 0; i < 14; i++) { const m = new THREE.Mesh(RBC, redMat()); m.scale.setScalar(0.32); m.userData = { ph: rnd(), x: (rnd() - 0.5) * 0.9, z: (rnd() - 0.5) * 1.6, r: rnd() * 6 }; root.add(m); drops.push(m); }
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshPhysicalMaterial({ color: 0xb01c1c, roughness: 0.2, clearcoat: 1 })); pool.rotation.x = -Math.PI / 2; pool.position.y = -2.4; pool.scale.setScalar(0.3); root.add(pool);
+  const lbl = textSprite('Darah membeku', 0.34, '#1f6b3f', SANS, PILL); lbl.position.set(0, -2.95, 1); root.add(lbl);
+  let P = false, TT = 0;
+  return {
+    root, viewNames: [], caption: (p) => (p ? 'Hemofilia: darah sukar membeku' : 'Normal: darah membeku'), play: true,
+    focus: () => ({ target: new THREE.Vector3(0, 0, 0), dist: 10 }), full: { target: new THREE.Vector3(0, 0, 0), dist: 10 },
+    setState(p) { P = p; TT = 0; pool.scale.setScalar(0.3); lbl.userData.set(p ? 'Darah terus mengalir' : 'Darah membeku', p ? '#b3141c' : '#1f6b3f'); },
+    setView() {}, replay() { TT = 0; pool.scale.setScalar(0.3); },
+    update(t, dt) {
+      TT += dt;
+      const k = Math.min(1, TT / 2.5);
+      fibres.forEach((f, i) => f.scale.setScalar(P ? 0.001 : Math.max(0.001, Math.min(1, k * 1.6 - i * 0.03))));
+      const clotted = !P && k >= 0.85;
+      drops.forEach((m) => {
+        const u = m.userData; if (!clotted) u.ph += dt * 0.45;
+        const y = clotted ? 1.45 + Math.sin(t + u.r) * 0.06 : 1.8 - (u.ph % 1) * 4.3;
+        m.position.set(u.x, y, u.z); m.rotation.set(u.r + t, u.r, 0);
+      });
+      if (P) pool.scale.setScalar(Math.min(2.6, pool.scale.x + dt * 0.25));
+    },
+  };
+}
+
+function plateTexture(sim) {
+  const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  const m = document.createElement('canvas'); m.width = m.height = S;
+  const mg = m.getContext('2d'); mg.font = 'bold 300px Arial'; mg.textAlign = 'center'; mg.textBaseline = 'middle'; mg.fillText('7', S / 2, S / 2 + 18);
+  const md = mg.getImageData(0, 0, S, S).data;
+  g.fillStyle = '#f2ecdc'; g.beginPath(); g.arc(S / 2, S / 2, S / 2, 0, 7); g.fill();
+  const rnd = seeded(42);
+  const fig = sim ? ['#b8a35a', '#c2ad62', '#ab9850'] : ['#e8743b', '#f0883e', '#d9622b', '#f29b5c'];
+  const bg = sim ? ['#b5a65d', '#c1af66', '#a99c52', '#c7b871'] : ['#8db86b', '#a3c47a', '#7aa85a', '#b4c98a'];
+  const dots = [];
+  for (let i = 0; i < 14000 && dots.length < 900; i++) {
+    const rr = 4 + rnd() * 9, x = rnd() * S, y = rnd() * S;
+    if (Math.hypot(x - S / 2, y - S / 2) > S / 2 - rr - 6) continue;
+    if (dots.some((d) => Math.hypot(d[0] - x, d[1] - y) < d[2] + rr + 1.5)) continue;
+    dots.push([x, y, rr]);
+  }
+  for (const [x, y, rr] of dots) { const pal = md[(Math.floor(y) * S + Math.floor(x)) * 4 + 3] > 128 ? fig : bg; g.fillStyle = pal[Math.floor(rnd() * pal.length)]; g.beginPath(); g.arc(x, y, rr, 0, 7); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function colourScene() {
+  const root = new THREE.Group();
+  const chrom = new THREE.Group(); root.add(chrom);
+  const xN = chromosome(3.6, 0.4, 'A', 5, { r: 0.38, gene: '#1f9d5a' });
+  const xM = chromosome(3.6, 0.4, 'A', 5, { r: 0.38, gene: '#e3142b' });
+  xN.position.set(-1.1, 0, 0); xM.position.copy(xN.position); setOpacity(xM, 0); xM.visible = false;
+  const y = chromosome(1.5, 0.3, 'A', 99, { r: 0.38 }); y.position.set(1.3, -1.05, 0);
+  chrom.add(xN, xM, y);
+  const lx = textSprite('X', 0.55); lx.position.set(-1.1, -2.3, 0.6); const ly = textSprite('Y', 0.55); ly.position.set(1.3, -2.3, 0.6); chrom.add(lx, ly);
+  const gl = textSprite('gen penglihatan warna', 0.3, '#ffffff', SANS, '#1f9d5a'); gl.position.set(-1.1, 2.3, 0.6); chrom.add(gl);
+  const plateG = new THREE.Group(); root.add(plateG); plateG.visible = false;
+  const texN = plateTexture(false), texS = plateTexture(true);
+  const pm = new THREE.MeshStandardMaterial({ map: texN, roughness: 0.6 });
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 0.15, 72), [new THREE.MeshStandardMaterial({ color: 0xd9d2c0 }), pm, pm]); plate.rotation.x = Math.PI / 2; plateG.add(plate);
+  const pl = textSprite('Mata normal: nampak 7', 0.34, '#17143a', SANS, PILL); pl.position.set(0, -2.9, 0.5); plateG.add(pl);
+  return {
+    root, viewNames: ['Kromosom X', 'Ujian warna'], caption: (p) => (p ? 'Penghidap buta warna (lelaki)' : 'Lelaki normal'),
+    focus: () => ({ target: new THREE.Vector3(0, 0, 0), dist: 9.5 }), full: { target: new THREE.Vector3(0, 0, 0), dist: 9.5 },
+    setState(p, instant) {
+      xM.visible = true;
+      tween(instant ? 0 : 0.8, (k) => { const a = p ? k : 1 - k; setOpacity(xM, a); setOpacity(xN, 1 - a); }, ease.inout, 'cb');
+      gl.userData.set(p ? 'gen mutan resesif' : 'gen penglihatan warna', '#ffffff', p ? '#e3142b' : '#1f9d5a');
+      pm.map = p ? texS : texN; pm.needsUpdate = true;
+      pl.userData.set(p ? 'Penghidap: sukar nampak' : 'Mata normal: nampak 7', p ? '#b3141c' : '#17143a');
+    },
+    setView(v) { chrom.visible = v === 0; plateG.visible = v === 1; },
+    update(t) { if (plateG.visible) plateG.rotation.y = Math.sin(t * 0.6) * 0.25; },
+  };
+}
+
+// DNA with a mutagen hitting one base pair
+function dnaScene() {
+  const root = new THREE.Group(); const N = 22, pitch = 0.5, R = 1.25;
+  const cols = [0x4f8cff, 0xffc93c, 0x36c26b, 0xff7aa8];
+  const p1 = [], p2 = [], mut = []; const mid = new THREE.Vector3();
+  for (let i = 0; i < N; i++) {
+    const a = i * 0.6, x = (i - (N - 1) / 2) * pitch;
+    const a1 = new THREE.Vector3(x, Math.cos(a) * R, Math.sin(a) * R), a2 = new THREE.Vector3(x, -Math.cos(a) * R, -Math.sin(a) * R);
+    p1.push(a1); p2.push(a2); const m = a1.clone().add(a2).multiplyScalar(0.5); if (i === 11) mid.copy(m);
+    [[a1, i % 4], [a2, (i + 2) % 4]].forEach(([f, ci]) => {
+      const dir = m.clone().sub(f), len = dir.length();
+      const mat = new THREE.MeshPhysicalMaterial({ color: cols[ci], roughness: 0.35, clearcoat: 0.5 });
+      const cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, len, 10), mat);
+      cy.position.copy(f.clone().add(m).multiplyScalar(0.5)); cy.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); root.add(cy);
+      if (i === 11) mut.push([mat, cols[ci]]);
+    });
+  }
+  root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p1), 200, 0.17, 10), new THREE.MeshPhysicalMaterial({ color: 0x5b2fc9, roughness: 0.35, clearcoat: 0.6 })));
+  root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p2), 200, 0.17, 10), new THREE.MeshPhysicalMaterial({ color: 0x1fa79a, roughness: 0.35, clearcoat: 0.6 })));
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(1.6, 24, 16), new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0, depthWrite: false })); halo.position.copy(mid); root.add(halo);
+  const tag = textSprite('gen berubah', 0.48, '#ffffff', SANS, '#e3142b'); tag.position.set(mid.x + 1.6, 2.1, 0.5); tag.visible = false; root.add(tag);
+  const src = new THREE.Group(); root.add(src); src.position.set(mid.x - 3.0, 3.5, 1);
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(0.45, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffd23f })); src.add(sun);
+  const flask = new THREE.Group(); src.add(flask);
+  flask.add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 14), new THREE.MeshPhysicalMaterial({ color: 0x9be38a, transparent: true, opacity: 0.85 })));
+  const nk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.5, 12), new THREE.MeshPhysicalMaterial({ color: 0xdfe8ff })); nk.position.y = 0.45; flask.add(nk);
+  const sl = textSprite('Sinaran (UV, sinar-X, gama)', 0.5, '#17143a', SANS, PILL); sl.position.set(1.1, 0.95, 0); src.add(sl);
+  const bullets = []; for (let i = 0; i < 7; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd23f })); b.userData.off = i / 7; src.add(b); bullets.push(b); }
+  const aim = mid.clone().sub(src.position);
+  let P = false, TT = 0;
+  const setMut = (on) => { mut.forEach(([m, c]) => { m.color.setHex(on ? 0xff2d2d : c); m.emissive.setHex(on ? 0x880000 : 0); }); halo.material.opacity = on ? 0.15 : 0; tag.visible = on; };
+  return {
+    root, viewNames: ['Sinaran', 'Bahan kimia'], caption: (p) => (p ? 'Mutagen mengubah gen' : 'DNA normal'), play: true,
+    focus: () => ({ target: new THREE.Vector3(0, 0.7, 0), dist: 14 }), full: { target: new THREE.Vector3(0, 0.7, 0), dist: 14 },
+    setState(p) { P = p; TT = 0; setMut(false); src.visible = p; },
+    setView(v) {
+      sun.visible = v === 0; flask.visible = v === 1;
+      sl.userData.set(v === 0 ? 'Sinaran (UV, sinar-X, gama)' : 'Bahan kimia (tar rokok, benzena)');
+      bullets.forEach((b) => b.material.color.setHex(v === 0 ? 0xffd23f : 0x58c24f)); TT = 0; setMut(false);
+    },
+    replay() { TT = 0; setMut(false); },
+    update(t, dt) {
+      if (!P) return; TT += dt;
+      bullets.forEach((b) => { const k = (TT * 1.1 + b.userData.off) % 1; b.visible = TT < 2.4; b.position.copy(aim).multiplyScalar(k); });
+      if (TT > 1.6) { setMut(true); halo.scale.setScalar(1 + 0.08 * Math.sin(t * 5)); }
+    },
+  };
+}
+
+// Meiosis: normal separation vs non-disjunction of chromosome 21
+function meiosisScene() {
+  const root = new THREE.Group();
+  const cell = (r) => new THREE.Mesh(new THREE.SphereGeometry(r, 36, 24), new THREE.MeshPhysicalMaterial({ color: 0xc9bfff, transparent: true, opacity: 0.22, roughness: 0.15, depthWrite: false }));
+  const parent = cell(1.3), gA = cell(1.0), gB = cell(1.0), sperm = cell(0.85), zyg = cell(1.35);
+  root.add(parent, gA, gB, sperm, zyg);
+  const c1 = chromosome(1.1, 0.3, 'hi', 140, { r: 0.14 }), c2 = chromosome(1.1, 0.3, 'hi', 141, { r: 0.14 }), c3 = chromosome(1.1, 0.3, 'A', 142, { r: 0.14 });
+  root.add(c1, c2, c3);
+  const cap = textSprite(' ', 0.46, '#17143a', SANS, PILL); cap.position.set(0, -2.9, 1); root.add(cap);
+  const lA = textSprite(' ', 0.42, '#17143a', SANS, PILL), lB = textSprite(' ', 0.42, '#17143a', SANS, PILL), lS = textSprite(' ', 0.42, '#17143a', SANS, PILL), lZ = textSprite(' ', 0.48, '#a87400', SANS, PILL);
+  root.add(lA, lB, lS, lZ);
+  let P = false, TT = 0; const last = {};
+  const setL = (s, txt, col) => { if (last[s.id] !== txt) { s.userData.set(txt, col); last[s.id] = txt; } };
+  const V = (x, y) => new THREE.Vector3(x, y, 0);
+  return {
+    root, viewNames: [], caption: (p) => (p ? 'Kromosom 21 gagal berpisah' : 'Meiosis normal'), play: true,
+    focus: () => ({ target: new THREE.Vector3(0, 0, 0), dist: 12.5 }), full: { target: new THREE.Vector3(0, 0, 0), dist: 12.5 },
+    setState(p) { P = p; TT = 0; }, setView() {}, replay() { TT = 0; },
+    update(t, dt) {
+      TT += dt; const p = TT % 13;
+      lA.visible = lB.visible = lS.visible = lZ.visible = false;
+      let txt;
+      if (p < 2) {
+        parent.visible = true; gA.visible = gB.visible = sperm.visible = zyg.visible = c3.visible = false; c1.visible = c2.visible = true;
+        parent.position.copy(V(0, 0.4)); c1.position.copy(V(-0.2, 0.4)); c2.position.copy(V(0.2, 0.4)); txt = 'Sel induk: sepasang kromosom 21';
+      } else if (p < 5) {
+        const k = ease.inout(Math.min(1, (p - 2) / 2.2)); parent.visible = k < 0.25; gA.visible = gB.visible = true; zyg.visible = sperm.visible = c3.visible = false;
+        gA.position.copy(V(lerp(0, -3.2, k), lerp(0.4, 1.4, k))); gB.position.copy(V(lerp(0, -3.2, k), lerp(0.4, -1.4, k)));
+        if (P) { c1.position.copy(gA.position).add(V(-0.2, 0)); c2.position.copy(gA.position).add(V(0.2, 0)); }
+        else { c1.position.copy(gA.position); c2.position.copy(gB.position); }
+        lA.visible = lB.visible = k > 0.9; lA.position.set(-0.8, 1.4, 0.5); lB.position.set(-0.8, -1.4, 0.5);
+        setL(lA, P ? 'Gamet: 2 kromosom' : 'Gamet: 1 kromosom'); setL(lB, P ? 'Gamet: tiada' : 'Gamet: 1 kromosom');
+        txt = P ? 'Meiosis: kromosom GAGAL berpisah' : 'Meiosis: kromosom berpisah sama rata';
+      } else if (p < 8) {
+        const k = ease.out(Math.min(1, (p - 5) / 2.5)); sperm.visible = c3.visible = true;
+        sperm.position.copy(V(lerp(4.2, -1.6, k), 1.4)); c3.position.copy(sperm.position);
+        lS.visible = true; lS.position.set(sperm.position.x + 0.4, 2.65, 0.5); setL(lS, 'Gamet normal: 1');
+        txt = 'Persenyawaan dengan gamet normal';
+      } else {
+        const k = ease.back(Math.min(1, (p - 8) / 1.2)); gA.visible = sperm.visible = false; zyg.visible = true;
+        zyg.position.copy(V(-2.6, 1.4)); zyg.scale.setScalar(Math.max(0.01, k));
+        if (P) { c1.position.copy(V(-3.0, 1.4)); c2.position.copy(V(-2.6, 1.4)); c3.position.copy(V(-2.2, 1.4)); }
+        else { c1.position.copy(V(-2.8, 1.4)); c3.position.copy(V(-2.4, 1.4)); }
+        lZ.visible = true; lZ.position.set(-2.6, 3.1, 0.5); setL(lZ, P ? 'Zigot: 3 kromosom 21' : 'Zigot: 2 kromosom 21', P ? '#b3141c' : '#1f6b3f');
+        txt = P ? 'Zigot 47 kromosom = sindrom Down' : 'Zigot normal: 46 kromosom';
+      }
+      setL(cap, txt);
+    },
+  };
+}
+
+function heroScene() {
+  const root = new THREE.Group();
+  const c = chromosome(4.2, 0.42, 'A', 7, { r: 0.5 }); c.rotation.z = -0.3; c.position.x = -1.4; root.add(c);
+  const h = chromosome(2.6, 0.3, 'hi', 21, { r: 0.42 }); h.rotation.z = 0.35; h.position.set(1.7, -0.5, 0); root.add(h);
+  const sh = shadowDisc(7, 3); sh.position.y = -2.5; root.add(sh);
+  return { root, viewNames: [], caption: () => 'Mutasi', focus: () => ({ target: new THREE.Vector3(0, 0, 0), dist: 10 }), full: { target: new THREE.Vector3(0, 0, 0), dist: 10 }, setState() {}, setView() {}, update(t, dt) { root.rotation.y += dt * 0.3; } };
+}
+
+// ---------- content (Buku Teks Sains T4 hlm. 90–92) ----------
+const CATS = ['Pengenalan', 'Mutasi kromosom', 'Mutasi gen', 'Faktor penyebab', 'Kuiz'];
+const TOPICS = [
+  { cat: 0, id: 'mutasi', name: 'Apakah mutasi?', sub: '5.3.1', build: heroScene, intro: true },
+  { cat: 1, id: 'down', name: 'Down', sub: 'kromosom ke-21', build: () => karyotype('down'), lbl: 'Jumlah kromosom',
+    stat: [['46', '44 + XY', 'Individu normal'], ['47', 'Tiga salinan kromosom ke-21', 'Lebih 1 berbanding individu normal (46)']],
+    notes: ['Berlaku kerana <b>penambahan satu kromosom</b> pada pasangan <b>kromosom ke-21</b>.', 'Ciri: kerencatan fizikal dan mental, leher pendek, mata sepet dan badan lebih rendah.', 'Kadar kelahiran 1 dalam setiap 800. Risiko tinggi jika umur ibu melebihi 35 tahun.'],
+    q: 'Tekan Normal kemudian Penghidap. Apakah yang muncul pada pasangan ke-21?', a: 'Satu kromosom tambahan muncul, jadi ada tiga kromosom ke-21 dan jumlahnya 47.' },
+  { cat: 1, id: 'turner', name: 'Turner', sub: 'XO', build: () => karyotype('turner'), lbl: 'Jumlah kromosom',
+    stat: [['46', '44 + XX', 'Perempuan normal'], ['45', '44 + XO', 'Kurang 1 berbanding individu normal (46)']],
+    notes: ['Penghidap mempunyai <b>kurang bilangan kromosom seks</b>: kehilangan satu kromosom X.', 'Penghidap ialah seorang <b>perempuan</b>.', 'Tidak mengalami perkembangan ciri-ciri seks sekunder seorang perempuan.'],
+    q: 'Kromosom manakah yang "hilang"? Mengapakah penghidap tetap perempuan?', a: 'Satu kromosom X hilang. Penghidap tetap perempuan kerana tiada kromosom Y.' },
+  { cat: 1, id: 'kline', name: 'Klinefelter', sub: 'XXY', build: () => karyotype('kline'), lbl: 'Jumlah kromosom',
+    stat: [['46', '44 + XY', 'Lelaki normal'], ['47', '44 + XXY', 'Lebih 1 kromosom X berbanding individu normal (46)']],
+    notes: ['Penghidap mempunyai <b>lebih bilangan kromosom seks</b>: penambahan satu kromosom X.', 'Penghidap ialah seorang <b>lelaki</b>.', 'Mempunyai ciri-ciri perempuan seperti payudara, testis yang kecil serta mandul.'],
+    q: 'Bandingkan dengan sindrom Turner. Apakah persamaan dan perbezaannya?', a: 'Kedua-duanya melibatkan kromosom seks X. Turner kurang satu X (perempuan, 45), Klinefelter lebih satu X (lelaki, 47).' },
+  { cat: 2, id: 'butawarna', name: 'Buta warna', sub: 'kromosom X', build: colourScene, lbl: 'Ujian plat warna',
+    stat: [['7', 'Nampak nombor 7', 'Gen penglihatan warna normal pada kromosom X'], ['?', 'Sukar nampak nombor', 'Gen mutan resesif pada kromosom X']],
+    notes: ['Penghidap mempunyai <b>gen mutan resesif</b> pada <b>kromosom X</b>.', 'Tidak dapat membezakan warna <b>merah dengan hijau</b>.', 'Lazim berlaku pada <b>lelaki</b>.'],
+    q: 'Mengapakah lebih ramai lelaki buta warna berbanding perempuan?', a: 'Lelaki hanya ada satu kromosom X. Satu gen resesif sudah cukup untuk menyebabkan buta warna.' },
+  { cat: 2, id: 'sabit', name: 'Anemia sel sabit', sub: 'hemoglobin', build: sickleScene, lbl: 'Pengangkutan oksigen',
+    stat: [['O₂', 'Sel berbentuk cakera', 'Oksigen diangkut dengan baik'], ['O₂ ↓', 'Sel berbentuk sabit', 'Pengangkutan oksigen terjejas']],
+    notes: ['Perubahan spontan pada <b>gen yang bertanggungjawab dalam penghasilan hemoglobin</b>.', 'Sel darah merah abnormal <b>berbentuk sabit</b> menjejaskan pengangkutan oksigen.', 'Disebabkan oleh <b>gen resesif pada autosom</b>.'],
+    q: 'Pilih "Dalam salur darah" dan tekan Penghidap. Apakah yang berlaku?', a: 'Sel sabit tersekat di salur darah yang sempit, aliran darah jadi perlahan dan oksigen kurang sampai ke sel badan.' },
+  { cat: 2, id: 'talasemia', name: 'Talasemia', sub: 'hemoglobin', build: thalScene, lbl: 'Sel darah merah',
+    stat: [['Hb', 'Saiz dan jangka hayat normal', 'Sel darah merah cukup untuk badan'], ['Hb ↓', 'Sel kecil, jangka hayat singkat', 'Kekurangan darah yang teruk']],
+    notes: ['Disebabkan oleh mutasi pada <b>gen yang mengawal penghasilan hemoglobin</b>.', 'Sel darah merah <b>kecil</b> dan <b>jangka hayat lebih singkat</b>.', 'Boleh menyebabkan kekurangan darah yang teruk.', 'November 2016: KKM melancarkan pemeriksaan talasemia untuk murid Tingkatan 4.'],
+    q: 'Pilih "Jangka hayat sel" dan bandingkan. Mengapakah pesakit talasemia kerap letih?', a: 'Sel darahnya kecil dan cepat musnah, jadi badan kekurangan hemoglobin untuk mengangkut oksigen.' },
+  { cat: 2, id: 'hemofilia', name: 'Hemofilia', sub: 'pembekuan darah', build: hemoScene, lbl: 'Selepas luka',
+    stat: [['Beku', 'Darah membeku', 'Benang fibrin memerangkap sel darah'], ['Tak beku', 'Darah terus mengalir', 'Faktor pembekuan darah tidak dihasilkan']],
+    notes: ['Pesakit mengalami <b>kesukaran darah membeku</b>.', 'Berlaku mutasi pada <b>gen yang menghasilkan faktor pembekuan darah</b>.', 'Pesakit kehilangan darah berterusan sekiranya terluka atau tercedera.'],
+    q: 'Bandingkan Normal dan Penghidap. Apakah yang tiada pada penghidap?', a: 'Benang fibrin (darah beku) tidak terbentuk, jadi darah terus mengalir keluar.' },
+  { cat: 3, id: 'mutagen', name: 'Mutagen', sub: 'mutasi gen', build: dnaScene, lbl: 'Struktur DNA',
+    stat: [['DNA', 'Jujukan bes asal', 'Tiada pendedahan kepada mutagen'], ['!', 'Bes DNA berubah', 'Mutagen menyebabkan mutasi gen']],
+    notes: ['Faktor yang menyebabkan mutasi dipanggil <b>mutagen</b>.', '<b>Sinaran</b>: sinar-X, sinar gama, sinaran ultraungu (UV), bahan radioaktif.', '<b>Bahan kimia</b>: tar dalam asap rokok, benzena, formaldehid, racun perosak.', 'Mutasi juga boleh berlaku secara <b>spontan</b> akibat kesilapan semasa replikasi DNA.'],
+    q: 'Cetusan Minda: adakah pemakanan ibu semasa mengandung boleh menyebabkan mutasi?', a: 'Boleh, jika makanan mengandungi bahan kimia mutagen, contohnya makanan berkulat atau hangus. Pemakanan seimbang mengurangkan risiko.' },
+  { cat: 3, id: 'meiosis', name: 'Gagal berpisah', sub: 'mutasi kromosom', build: meiosisScene, lbl: 'Zigot',
+    stat: [['46', 'Zigot normal', 'Kromosom berpisah sama rata semasa meiosis'], ['47', '3 kromosom 21', 'Kromosom gagal berpisah semasa meiosis']],
+    notes: ['Mutasi kromosom berlaku akibat <b>kecacatan semasa pembahagian sel</b> (meiosis).', 'Sepasang kromosom gagal berpisah: satu gamet dapat 2, satu lagi tiada.', '<b>Umur ibu</b> melebihi 35 tahun meningkatkan risiko sindrom Down.', 'Kegagalan yang sama pada kromosom X menghasilkan sindrom Turner (XO) atau Klinefelter (XXY).'],
+    q: 'Jika gamet ibu tiada kromosom X bersenyawa dengan sperma yang membawa X, apakah sindromnya?', a: 'Sindrom Turner (44 + XO).' },
+  { cat: 4, id: 'kuiz', name: 'Kuiz kilat', sub: '6 soalan', build: heroScene, quiz: true },
+];
+const QUIZ = [
+  ['Mutasi ialah perubahan ____ pada gen dan kromosom.', ['teratur dan dirancang', 'spontan dan rawak', 'yang hanya berlaku pada lelaki'], 1],
+  ['Kariotip 44 + XO ialah ...', ['Sindrom Down', 'Sindrom Turner', 'Sindrom Klinefelter'], 1],
+  ['Penghidap sindrom Down mempunyai ... kromosom.', ['45', '46', '47'], 2],
+  ['Penyakit yang menyebabkan darah sukar membeku ialah ...', ['Talasemia', 'Hemofilia', 'Buta warna'], 1],
+  ['Sel darah merah berbentuk sabit menjejaskan ...', ['pengangkutan oksigen', 'pembekuan darah', 'penglihatan warna'], 0],
+  ['Antara berikut, yang manakah mutagen?', ['Air suling', 'Sinar-X', 'Oksigen'], 1],
+];
+
+// ---------- view state ----------
+let cur = null, curDef = null, stateP = 0, view = 0, catIdx = 1;
+let yaw = 0, pitch = 0, zoom = 1, userAt = 0;
+const camT = { target: new THREE.Vector3(), dist: 10 };
+
+function buildCats() {
+  const el = $('cats'); el.innerHTML = '';
+  CATS.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'cat' + (i === catIdx ? ' on' : ''); b.textContent = c; b.onclick = () => open(TOPICS.find((t) => t.cat === i).id); el.appendChild(b); });
+}
+function buildTabs() {
+  const el = $('tabs'); el.innerHTML = '';
+  const list = TOPICS.filter((t) => t.cat === catIdx);
+  el.hidden = list.length < 2;
+  list.forEach((t) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tab' + (curDef.id === t.id ? ' on' : ''); b.innerHTML = t.name + '<small>' + t.sub + '</small>'; b.onclick = () => open(t.id); el.appendChild(b); });
+}
+function animateNum(to, instant) {
+  const el = $('sNum'); const from = parseInt(el.textContent, 10);
+  el.classList.toggle('word', to.length > 3);
+  el.classList.toggle('alert', !!stateP);
+  if (instant || !/^\d+$/.test(to) || isNaN(from)) { el.textContent = to; return; }
+  tween(0.6, (k) => { el.textContent = String(Math.round(lerp(from, +to, k))); }, ease.out, 'num');
+}
+function renderStat(instant) {
+  const d = curDef;
+  $('statCard').hidden = !d.stat;
+  if (!d.stat) return;
+  const [n, t, s] = d.stat[stateP];
+  $('sLbl').textContent = d.lbl; animateNum(n, instant); $('sTitle').textContent = t; $('sSub').textContent = s;
+  $('legend').hidden = d.cat !== 1;
+}
+function renderNotes() {
+  const d = curDef, el = $('notes');
+  if (d.intro) {
+    const btn = (id, pre = '') => '<button type="button" data-go="' + id + '">' + pre + TOPICS.find((t) => t.id === id).name + '</button>';
+    el.innerHTML = '<h4>Maksud mutasi · hlm. 90</h4><p class="def"><b>Mutasi</b> ialah perubahan <mark>spontan dan rawak</mark> yang berlaku kepada <b>gen</b> dan <b>kromosom</b> yang boleh menyebabkan perubahan ciri pada anak yang mewarisi bahan genetik terubah suai tersebut.</p>' +
+      '<div class="tree"><div><div class="node">Mutasi kromosom: perubahan bilangan atau struktur kromosom</div><div class="kids">' + ['down', 'turner', 'kline'].map((id) => btn(id, 'Sindrom ')).join('') + '</div></div>' +
+      '<div><div class="node">Mutasi gen: perubahan kimia pada sesuatu gen</div><div class="kids">' + ['butawarna', 'sabit', 'talasemia', 'hemofilia'].map((id) => btn(id)).join('') + '<button type="button" disabled>Albinisme</button></div></div></div>';
+    el.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => open(b.dataset.go)));
+    return;
+  }
+  if (d.quiz) { renderQuiz(el); return; }
+  el.innerHTML = '<h4>Ciri-ciri · buku teks hlm. 90–92</h4><ul>' + d.notes.map((n) => '<li>' + n + '</li>').join('') + '</ul>' +
+    '<div class="cuba"><b>Cuba:</b> ' + d.q + '<div><button class="btn" type="button" id="rev" style="margin-top:8px">Tunjuk jawapan</button></div><div class="a" id="ans" hidden>' + d.a + '</div></div>';
+  $('rev').onclick = () => { $('ans').hidden = false; $('rev').hidden = true; };
+}
+let qi = 0, score = 0;
+function renderQuiz(el) {
+  if (qi >= QUIZ.length) {
+    el.innerHTML = '<h4>Keputusan</h4><div class="stat"><div class="num">' + score + '</div><div><h3>daripada ' + QUIZ.length + '</h3><p>' + (score >= 5 ? 'Hebat! Kriteria kejayaan dicapai.' : 'Ulang kaji model yang salah, kemudian cuba lagi.') + '</p></div></div><div class="row" style="margin-top:12px"><button class="btn go" type="button" id="qa">Cuba lagi</button></div>';
+    $('qa').onclick = () => { qi = 0; score = 0; renderQuiz(el); }; return;
+  }
+  const [q, opts, ans] = QUIZ[qi];
+  el.innerHTML = '<h4>Soalan ' + (qi + 1) + ' / ' + QUIZ.length + '</h4><p class="def">' + q + '</p><div class="opts"></div>';
+  const box = el.querySelector('.opts');
+  opts.forEach((o, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = o; b.onclick = () => { if (box.dataset.done) return; box.dataset.done = 1; b.classList.add(i === ans ? 'ok' : 'no'); box.children[ans].classList.add('ok'); if (i === ans) score++; setTimeout(() => { qi++; renderQuiz(el); }, 1100); }; box.appendChild(b); });
+}
+function renderCtrls() {
+  const simple = curDef.intro || curDef.quiz;
+  $('segState').hidden = simple;
+  $('segState').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.s === stateP));
+  const sv = $('segView'); sv.innerHTML = '';
+  sv.hidden = simple || cur.viewNames.length < 2;
+  cur.viewNames.forEach((n, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = n; b.className = i === view ? 'on' : ''; b.onclick = () => setView(i); sv.appendChild(b); });
+  $('play').hidden = !cur.play;
+  $('cap').textContent = cur.caption(stateP);
+}
+function moveCam(v, instant) {
+  const f = v === 0 ? cur.focus() : cur.full;
+  const fromT = camT.target.clone(), fromD = camT.dist;
+  if (instant) { camT.target.copy(f.target); camT.dist = f.dist; return; }
+  tween(1.0, (k) => { camT.target.lerpVectors(fromT, f.target, k); camT.dist = lerp(fromD, f.dist, k); }, ease.inout, 'cam');
+}
+function setView(i) { view = i; cur.setView(i); moveCam(i); renderCtrls(); }
+function setState(p) { stateP = p; cur.setState(!!p); renderStat(); renderCtrls(); }
+function open(id) {
+  const d = TOPICS.find((t) => t.id === id);
+  if (cur) pivot.remove(cur.root);
+  tweens.length = 0;
+  curDef = d; catIdx = d.cat; cur = d.build(); pivot.add(cur.root);
+  stateP = 0; yaw = 0; pitch = 0; zoom = 1; qi = 0; score = 0;
+  view = d.cat === 1 ? 1 : 0;
+  cur.setState(false, true); cur.setView(view, true); moveCam(view, true);
+  buildCats(); buildTabs(); renderStat(true); renderNotes(); renderCtrls();
+  try { history.replaceState(null, '', '#' + id); } catch (e) { /* hash is optional */ }
+}
+$('segState').querySelectorAll('button').forEach((b) => (b.onclick = () => setState(+b.dataset.s)));
+$('zin').onclick = () => { zoom = Math.max(0.35, zoom / 1.25); userAt = performance.now(); };
+$('zout').onclick = () => { zoom = Math.min(2.5, zoom * 1.25); userAt = performance.now(); };
+$('reset').onclick = () => { yaw = 0; pitch = 0; zoom = 1; };
+$('play').onclick = () => { if (cur.replay) cur.replay(); };
+window.addEventListener('hashchange', () => { const t = TOPICS.find((x) => '#' + x.id === location.hash); if (t && t !== curDef) open(t.id); });
+
+// ---------- input ----------
+const ptrs = new Map(); let pinch0 = 0, zoom0 = 1;
+canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); userAt = performance.now(); if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); zoom0 = zoom; } });
+canvas.addEventListener('pointermove', (e) => {
+  if (!ptrs.has(e.pointerId)) return; const p = ptrs.get(e.pointerId);
+  if (ptrs.size === 1) { yaw += (e.clientX - p[0]) * 0.008; pitch = Math.max(-1.0, Math.min(1.0, pitch + (e.clientY - p[1]) * 0.006)); }
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 2 && pinch0) { const [a, b] = [...ptrs.values()]; zoom = Math.max(0.35, Math.min(2.5, zoom0 * pinch0 / Math.hypot(a[0] - b[0], a[1] - b[1]))); }
+  userAt = performance.now();
+});
+const up = (e) => { ptrs.delete(e.pointerId); pinch0 = 0; };
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.35, Math.min(2.5, zoom * (1 + e.deltaY * 0.001))); }, { passive: false });
+
+// ---------- camera AR ----------
+let stream = null; const video = $('cam');
+function toast(m, ms = 5000) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), ms); }
+$('camBtn').onclick = async () => {
+  if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; video.hidden = true; stageEl.classList.remove('camon'); $('camBtn').textContent = 'Kamera AR'; return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    video.srcObject = stream; video.hidden = false; await video.play(); stageEl.classList.add('camon'); $('camBtn').textContent = 'Tutup kamera';
+    toast('Halakan kamera ke meja. Model terapung di atas paparan kamera.');
+  } catch (e) { stream = null; toast('Kamera tidak dapat dibuka di sini. Buka versi GitHub Pages (https) di telefon dan benarkan kamera. Model 3D masih boleh digunakan.', 7000); }
+};
+
+// ---------- loop ----------
+function resize() {
+  const r = stageEl.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height;
+  camera.fov = camera.aspect < 0.9 ? 42 : 32; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stageEl); resize();
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  stepTweens(dt);
+  if (curDef && curDef.cat === 1 && performance.now() - userAt > 3000) { yaw += (Math.sin(t * 0.45) * 0.3 - yaw) * dt * 0.8; pitch += (0.05 - pitch) * dt; }
+  if (cur) cur.update(t, dt);
+  pivot.rotation.set(pitch, yaw, 0);
+  // narrow (portrait) stages need more distance so the model's width fits
+  const aspectK = camera.aspect < 1.25 ? 1.25 / camera.aspect : 1;
+  const d = camT.dist * zoom * (camera.aspect < 0.9 ? Math.min(aspectK, cur.kCap || 1.55) : aspectK);
+  const tgt = camT.target.clone().applyEuler(pivot.rotation);
+  camera.position.set(tgt.x, tgt.y + d * 0.03, tgt.z + d); camera.lookAt(tgt);
+  renderer.render(scene, camera);
+});
+const start = TOPICS.find((t) => '#' + t.id === location.hash);
+open(start ? start.id : 'down');
+})();
+</script>
+</body></html>
